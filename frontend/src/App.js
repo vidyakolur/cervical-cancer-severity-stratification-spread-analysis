@@ -11,6 +11,7 @@ function App() {
   const [gradcam, setGradcam] = useState(null);
   const [heatmapOpacity, setHeatmapOpacity] = useState(0.5);
   const [pathologistReview, setPathologistReview] = useState(null);
+  const [validationStatus, setValidationStatus] = useState(null);
 
   const [result, setResult] = useState(null);
   const [confidence, setConfidence] = useState(null);
@@ -49,6 +50,7 @@ function App() {
     setFollowUp(null);
     setLocalizationMap(null);
     setMaskedImage(null);
+    setValidationStatus(null);
   };
 
   const triggerFileUpload = () => {
@@ -67,6 +69,13 @@ function App() {
         body: formData,
       });
       const data = await res.json();
+      
+      if (data.validation_error) {
+        setValidationStatus('invalid');
+        setLoading(false);
+        return;
+      }
+      setValidationStatus('valid');
 
       setResult(data.prediction);
       setConfidence(data.confidence);
@@ -405,7 +414,24 @@ function App() {
           </div>
           
           <div className="panel-content" id="report">
-            {!result ? (
+            {validationStatus === 'valid' && (
+              <div style={{ marginBottom: '15px', color: '#4caf50', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                 ✅ Image Verified
+              </div>
+            )}
+            
+            {validationStatus === 'invalid' && (
+              <div style={{ marginBottom: '15px', color: '#f44336', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                 ❌ Invalid Image
+              </div>
+            )}
+
+            {validationStatus === 'invalid' ? (
+              <div className="status-banner severity-high">
+                <h4>Invalid Image</h4>
+                <p><strong>The uploaded image is not a valid cervical Pap smear microscopic cell image. Please upload a clear microscopic cervical cell image for analysis.</strong></p>
+              </div>
+            ) : !result ? (
               <div className="info-box">
                 <p>Awaiting inference. Ensure slide is loaded and click "Run AI Analysis".</p>
               </div>

@@ -137,6 +137,27 @@ def generate_gradcam(model, image_tensor, size=(224, 224)):
 
     return cam
 
+def is_valid_cell_image(image_pil):
+    """
+    Validates if the image is likely a microscopic cell slide.
+    """
+    img_np = np.array(image_pil)
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+    
+    # Reject solid color / uniform images
+    if np.var(gray) < 5.0:
+        return False
+        
+    # Reject screenshots and UI templates by checking for long, straight lines.
+    # Biological images rarely have multiple perfectly straight lines.
+    edges = cv2.Canny(gray, 50, 150)
+    lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+    
+    if lines is not None and len(lines) > 5:
+        return False
+        
+    return True
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
@@ -146,6 +167,9 @@ async def predict(file: UploadFile = File(...)):
             image = Image.open(io.BytesIO(contents)).convert("RGB")
         except:
             return {"error": "Invalid image file"}
+
+        if not is_valid_cell_image(image):
+            return {"validation_error": "Invalid image"}
 
         img = transform(image).unsqueeze(0)
 
